@@ -1,20 +1,74 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
   FlatList,
   StyleSheet,
   Image,
-  Button,
   TouchableOpacity,
   Dimensions,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native";
 
 const screenWidth = Dimensions.get("window").width;
 
-const CartScreen = ({ cart, removeFromCart }) => {
+const CartScreen = () => {
+  const [cartItems, setCartItems] = useState([]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      // Load cart from AsyncStorage when the component comes into focus
+      const loadCart = async () => {
+        try {
+          const jsonValue = await AsyncStorage.getItem("cart");
+          setCartItems(jsonValue != null ? JSON.parse(jsonValue) : []);
+        } catch (e) {
+          console.error("Error loading cart from AsyncStorage:", e);
+        }
+      };
+      loadCart();
+    }, [])
+  );
+
   const calculateTotal = () => {
-    return cart?.reduce((total, item) => total + item.price, 0).toFixed(2);
+    return cartItems
+      ?.reduce((total, item) => {
+        const itemTotal = item.price * (item.quantity || 1); // Ensure quantity defaults to 1
+        return total + itemTotal;
+      }, 0)
+      .toFixed(2);
+  };
+
+  const updateCart = async (updatedCart) => {
+    setCartItems(updatedCart);
+    const jsonValue = JSON.stringify(updatedCart);
+    await AsyncStorage.setItem("cart", jsonValue);
+  };
+
+  const incrementQuantity = (productId) => {
+    const updatedCart = cartItems.map((item) =>
+      item.id === productId
+        ? { ...item, quantity: (item.quantity || 1) + 1 }
+        : item
+    );
+    updateCart(updatedCart);
+  };
+
+  const decrementQuantity = (productId) => {
+    const updatedCart = cartItems
+      .map((item) =>
+        item.id === productId && item.quantity > 1
+          ? { ...item, quantity: item.quantity - 1 }
+          : item
+      )
+      .filter((item) => item.quantity > 0); // Remove items with quantity 0
+    updateCart(updatedCart);
+  };
+
+  const removeFromCart = (productId) => {
+    const updatedCart = cartItems.filter((item) => item.id !== productId);
+    updateCart(updatedCart);
   };
 
   const renderCartItem = ({ item }) => (
@@ -23,6 +77,23 @@ const CartScreen = ({ cart, removeFromCart }) => {
       <View style={styles.details}>
         <Text style={styles.title}>{item.title}</Text>
         <Text style={styles.price}>${item.price}</Text>
+
+        <View style={styles.quantityContainer}>
+          <TouchableOpacity
+            style={styles.quantityButton}
+            onPress={() => decrementQuantity(item.id)}
+          >
+            <Text style={styles.quantityButtonText}>-</Text>
+          </TouchableOpacity>
+          <Text style={styles.quantityText}>{item.quantity || 1}</Text>
+          <TouchableOpacity
+            style={styles.quantityButton}
+            onPress={() => incrementQuantity(item.id)}
+          >
+            <Text style={styles.quantityButtonText}>+</Text>
+          </TouchableOpacity>
+        </View>
+
         <TouchableOpacity onPress={() => removeFromCart(item.id)}>
           <Text style={styles.removeButton}>Remove</Text>
         </TouchableOpacity>
@@ -33,13 +104,12 @@ const CartScreen = ({ cart, removeFromCart }) => {
   return (
     <View style={styles.container}>
       <Text style={styles.header}>Your Cart</Text>
-
-      {cart?.length === 0 ? (
+      {cartItems?.length === 0 ? (
         <Text style={styles.emptyCartText}>Your cart is empty!</Text>
       ) : (
         <>
           <FlatList
-            data={cart}
+            data={cartItems}
             keyExtractor={(item) => item.id.toString()}
             renderItem={renderCartItem}
           />
@@ -96,6 +166,26 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#e74c3c",
     marginTop: 5,
+  },
+  quantityContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 10,
+  },
+  quantityButton: {
+    backgroundColor: "#3498db",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 5,
+  },
+  quantityButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+  quantityText: {
+    marginHorizontal: 10,
+    fontSize: 16,
+    fontWeight: "bold",
   },
   removeButton: {
     marginTop: 10,

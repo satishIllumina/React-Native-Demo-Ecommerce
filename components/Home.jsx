@@ -18,7 +18,6 @@ const screenWidth = Dimensions.get("window").width;
 const HomeScreen = ({ cart, addToCart }) => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [featuredProducts, setFeaturedProducts] = useState([]);
 
   useEffect(() => {
     fetchProducts();
@@ -28,7 +27,7 @@ const HomeScreen = ({ cart, addToCart }) => {
     try {
       const response = await axios.get("https://dummyjson.com/products");
       setProducts(response.data.products || []);
-      setFeaturedProducts(response.data.products?.slice(0, 5) || []);
+      // setFeaturedProducts(response.data.products?.slice(0, 5) || []);
     } catch (error) {
       console.error("Error fetching products:", error);
     } finally {
@@ -119,8 +118,8 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   image: {
-    width: 200,
-    height: 200,
+    width: 80,
+    height: 80,
     borderRadius: 10,
     marginBottom: 10,
   },
